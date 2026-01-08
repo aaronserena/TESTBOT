@@ -4,14 +4,12 @@ import { useState, useEffect } from 'react';
 
 interface PriceData {
     price: number;
-    markPrice: number;
-    indexPrice: number;
-    fundingRate: number;
     change24h: number;
     changePercent24h: number;
     high24h: number;
     low24h: number;
     volume24h: number;
+    marketCap?: number;
     timestamp: number;
     source: string;
 }
@@ -45,7 +43,7 @@ export function BitcoinPrice() {
         }
 
         fetchPrice();
-        const interval = setInterval(fetchPrice, 3000); // Update every 3 seconds
+        const interval = setInterval(fetchPrice, 10000); // Update every 10 seconds (CoinGecko rate limit)
 
         return () => clearInterval(interval);
     }, [prevPrice, priceData?.price]);
@@ -59,7 +57,7 @@ export function BitcoinPrice() {
                     </span>
                 </div>
                 <div style={{ color: 'var(--text-muted)', padding: '1rem 0' }}>
-                    {loading ? 'Connecting to Binance Futures...' : 'Price unavailable'}
+                    {loading ? 'Loading price...' : 'Price unavailable'}
                 </div>
             </div>
         );
@@ -77,11 +75,11 @@ export function BitcoinPrice() {
         >
             <div className="card-header">
                 <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '1.25rem', color: '#f7931a' }}>₿</span> BTCUSDT Perpetual
+                    <span style={{ fontSize: '1.25rem', color: '#f7931a' }}>₿</span> BTC/USD
                 </span>
                 <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', animation: 'pulse 2s infinite' }} />
-                    Binance Futures
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
+                    {priceData.source}
                 </span>
             </div>
 
@@ -111,36 +109,7 @@ export function BitcoinPrice() {
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                         ({isPositive ? '+' : ''}${priceData.change24h.toFixed(2)})
                     </span>
-                    <span style={{
-                        color: priceData.fundingRate >= 0 ? '#22c55e' : '#ef4444',
-                        fontSize: '0.75rem',
-                        padding: '0.15rem 0.4rem',
-                        background: 'var(--bg-tertiary)',
-                        borderRadius: '4px'
-                    }}>
-                        Funding: {priceData.fundingRate >= 0 ? '+' : ''}{priceData.fundingRate.toFixed(4)}%
-                    </span>
-                </div>
-            </div>
-
-            {/* Price Types Row */}
-            <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '0.75rem',
-                marginBottom: '0.75rem'
-            }}>
-                <div style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '0.5rem' }}>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '0.15rem' }}>Mark Price</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 600, fontFamily: 'monospace' }}>
-                        ${priceData.markPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
-                </div>
-                <div style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '0.5rem' }}>
-                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '0.15rem' }}>Index Price</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 600, fontFamily: 'monospace' }}>
-                        ${priceData.indexPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </div>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>24h</span>
                 </div>
             </div>
 
@@ -168,9 +137,7 @@ export function BitcoinPrice() {
                 <div>
                     <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: '0.15rem' }}>24h Volume</div>
                     <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                        {priceData.volume24h > 1000000
-                            ? `${(priceData.volume24h / 1000000).toFixed(2)}M`
-                            : `${(priceData.volume24h / 1000).toFixed(1)}K`} BTC
+                        ${(priceData.volume24h / 1000000000).toFixed(2)}B
                     </div>
                 </div>
             </div>
