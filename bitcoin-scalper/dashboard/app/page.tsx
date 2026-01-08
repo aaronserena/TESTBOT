@@ -103,69 +103,106 @@ export default function Dashboard() {
     const [blunderStats, setBlunderStats] = useState(emptyBlunderStats);
     const [killSwitchActive, setKillSwitchActive] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [lastScanAt, setLastScanAt] = useState<number | null>(null);
+    const [botToggling, setBotToggling] = useState(false);
 
-    // Fetch data on mount
-    useEffect(() => {
-        async function fetchData() {
-            try {
-                const [statusRes, tradesRes, signalsRes] = await Promise.all([
-                    fetch('/api/status'),
-                    fetch('/api/trades'),
-                    fetch('/api/signals')
-                ]);
+    // Fetch data function (reusable)
+    async function fetchData() {
+        try {
+            const [statusRes, tradesRes, signalsRes] = await Promise.all([
+                fetch('/api/status'),
+                fetch('/api/trades'),
+                fetch('/api/signals')
+            ]);
 
-                if (statusRes.ok) {
-                    const status = await statusRes.json();
-                    setData({
-                        status: status.isRunning ? 'running' : 'stopped',
-                        equity: status.equity || 0,
-                        startingEquity: status.startingEquity || 0,
-                        pnl: status.pnl || 0,
-                        pnlPercent: status.pnlPercent || 0,
-                        unrealizedPnl: status.unrealizedPnl || 0,
-                        winRate: status.metrics?.winRate || 0,
-                        expectancy: status.metrics?.expectancy || 0,
-                        drawdown: status.metrics?.currentDrawdown || 0,
-                        maxDrawdown: status.metrics?.maxDrawdown || 0,
-                        totalTrades: status.metrics?.totalTrades || 0,
-                        winningTrades: status.metrics?.winningTrades || 0,
-                        losingTrades: status.metrics?.losingTrades || 0,
-                        totalFees: status.metrics?.totalFees || 0,
-                        avgLatency: status.metrics?.avgLatency || 0,
-                        regime: status.regime || 'UNKNOWN',
-                        position: status.position || null
-                    });
-                    setKillSwitchActive(status.killSwitchActive || false);
-                }
-
-                if (tradesRes.ok) {
-                    const tradeData = await tradesRes.json();
-                    setTrades(tradeData.trades || []);
-
-                    // Calculate blunder stats from trades
-                    const stats = { notAMistake: 0, inaccuracy: 0, mistake: 0, blunder: 0 };
-                    for (const trade of tradeData.trades || []) {
-                        if (trade.blunder === 'NOT_A_MISTAKE') stats.notAMistake++;
-                        else if (trade.blunder === 'INACCURACY') stats.inaccuracy++;
-                        else if (trade.blunder === 'MISTAKE') stats.mistake++;
-                        else if (trade.blunder === 'BLUNDER') stats.blunder++;
-                    }
-                    setBlunderStats(stats);
-                }
-
-                if (signalsRes.ok) {
-                    const signalData = await signalsRes.json();
-                    setSignals(signalData.signals || []);
-                }
-            } catch (error) {
-                console.error('Failed to fetch data:', error);
-            } finally {
-                setLoading(false);
+            if (statusRes.ok) {
+                const status = await statusRes.json();
+                setData({
+                    status: status.isRunning ? 'running' : 'stopped',
+                    equity: status.equity || 0,
+                    startingEquity: status.startingEquity || 0,
+                    pnl: status.pnl || 0,
+                    pnlPercent: status.pnlPercent || 0,
+                    unrealizedPnl: status.unrealizedPnl || 0,
+                    winRate: status.metrics?.winRate || 0,
+                    expectancy: status.metrics?.expectancy || 0,
+                    drawdown: status.metrics?.currentDrawdown || 0,
+                    maxDrawdown: status.metrics?.maxDrawdown || 0,
+                    totalTrades: status.metrics?.totalTrades || 0,
+                    winningTrades: status.metrics?.winningTrades || 0,
+                    losingTrades: status.metrics?.losingTrades || 0,
+                    totalFees: status.metrics?.totalFees || 0,
+                    avgLatency: status.metrics?.avgLatency || 0,
+                    regime: status.regime || 'UNKNOWN',
+                    position: status.position || null
+                });
+                setKillSwitchActive(status.killSwitchActive || false);
+                setLastScanAt(status.lastScanAt || null);
             }
-        }
 
+            if (tradesRes.ok) {
+                const tradeData = await tradesRes.json();
+                setTrades(tradeData.trades || []);
+
+                // Calculate blunder stats from trades
+                const stats = { notAMistake: 0, inaccuracy: 0, mistake: 0, blunder: 0 };
+                for (const trade of tradeData.trades || []) {
+                    if (trade.blunder === 'NOT_A_MISTAKE') stats.notAMistake++;
+                    else if (trade.blunder === 'INACCURACY') stats.inaccuracy++;
+                    else if (trade.blunder === 'MISTAKE') stats.mistake++;
+                    else if (trade.blunder === 'BLUNDER') stats.blunder++;
+                }
+                setBlunderStats(stats);
+            }
+
+            if (signalsRes.ok) {
+                const signalData = await signalsRes.json();
+                setSignals(signalData.signals || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch data:', error);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    // Fetch data on mount and set up auto-refresh
+    useEffect(() => {
         fetchData();
+
+        // Auto-refresh every 30 seconds
+        const interval = setInterval(fetchData, 30000);
+        return () => clearInterval(interval);
     }, []);
+
+    // Handle bot start/stop
+    const handleBotToggle = async () => {
+        setBotToggling(true);
+        try {
+            const action = data.status === 'running' ? 'stop' : 'start';
+            const res = await fetch('/api/bot/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+            if (res.ok) {
+                setData(prev => ({ ...prev, status: action === 'start' ? 'running' : 'stopped' }));
+            }
+        } catch (error) {
+            console.error('Failed to toggle bot:', error);
+        } finally {
+            setBotToggling(false);
+        }
+    };
+
+    // Format last scan time
+    const formatLastScan = () => {
+        if (!lastScanAt) return 'Never';
+        const seconds = Math.floor((Date.now() - lastScanAt) / 1000);
+        if (seconds < 60) return `${seconds}s ago`;
+        const minutes = Math.floor(seconds / 60);
+        return `${minutes}m ago`;
+    };
 
     const handleKillSwitchActivate = async (reason: string) => {
         try {
@@ -212,10 +249,47 @@ export default function Dashboard() {
                             width: 8,
                             height: 8,
                             borderRadius: '50%',
-                            background: data.status === 'running' ? '#22c55e' : '#ef4444'
+                            background: data.status === 'running' ? '#22c55e' : '#ef4444',
+                            animation: data.status === 'running' ? 'pulse 2s infinite' : 'none'
                         }} />
                         {data.status === 'running' ? 'Running' : 'Stopped'}
                     </span>
+                    <button
+                        onClick={handleBotToggle}
+                        disabled={botToggling}
+                        style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '0.5rem',
+                            border: 'none',
+                            fontWeight: 600,
+                            cursor: botToggling ? 'wait' : 'pointer',
+                            background: data.status === 'running'
+                                ? 'rgba(239, 68, 68, 0.2)'
+                                : 'rgba(34, 197, 94, 0.2)',
+                            color: data.status === 'running' ? '#ef4444' : '#22c55e',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        {botToggling ? '...' : (data.status === 'running' ? 'Stop Bot' : 'Start Bot')}
+                    </button>
+                    {data.status === 'running' && (
+                        <span style={{
+                            fontSize: '0.75rem',
+                            color: 'var(--text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                        }}>
+                            <span style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: '50%',
+                                background: '#22c55e',
+                                animation: 'pulse 1s infinite'
+                            }} />
+                            Last scan: {formatLastScan()}
+                        </span>
+                    )}
                     <span style={{ color: 'var(--text-muted)' }}>
                         Regime: <strong style={{ color: data.regime === 'UNKNOWN' ? 'var(--text-muted)' : '#22c55e' }}>
                             {data.regime}

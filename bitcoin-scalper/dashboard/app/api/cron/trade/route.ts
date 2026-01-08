@@ -230,6 +230,17 @@ export async function POST(request: NextRequest) {
         console.log('[Cron] Running trade check...');
         const check = await runTradeCheck(supabase);
 
+        // Update last_scan_at to show bot activity
+        if (supabase) {
+            await supabase
+                .from('bot_status')
+                .update({
+                    last_scan_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .not('id', 'is', null);
+        }
+
         const response: CronResponse = {
             success: true,
             message: 'Trade check completed',

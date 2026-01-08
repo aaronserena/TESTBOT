@@ -131,6 +131,7 @@ export async function GET() {
             },
             regime: data.regime || 'UNKNOWN',
             killSwitchActive: data.kill_switch_active || false,
+            lastScanAt: data.last_scan_at ? new Date(data.last_scan_at).getTime() : null,
             timestamp: Date.now()
         });
     } catch (error) {
