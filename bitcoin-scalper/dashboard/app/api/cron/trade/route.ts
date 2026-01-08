@@ -25,20 +25,20 @@ interface CronResponse {
 }
 
 /**
- * Fetch current BTC price from CoinGecko
+ * Fetch current BTC price from Binance (no rate limits for public API)
  */
 async function fetchBTCPrice(): Promise<number> {
     const response = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd',
+        'https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT',
         { cache: 'no-store' }
     );
 
     if (!response.ok) {
-        throw new Error(`CoinGecko API error: ${response.status}`);
+        throw new Error(`Binance API error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.bitcoin.usd;
+    return parseFloat(data.price);
 }
 
 /**
