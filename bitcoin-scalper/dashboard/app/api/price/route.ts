@@ -17,13 +17,12 @@ interface PriceData {
 // Fetch real Bitcoin price from Binance Futures API (perpetual contract)
 async function fetchBitcoinPrice(): Promise<PriceData> {
     try {
-        // Fetch from Binance Futures API - this is the price used for actual trading
         const [tickerRes, premiumRes] = await Promise.all([
             fetch('https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=BTCUSDT', {
-                next: { revalidate: 3 }
+                cache: 'no-store'
             }),
             fetch('https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT', {
-                next: { revalidate: 3 }
+                cache: 'no-store'
             })
         ]);
 
@@ -38,7 +37,7 @@ async function fetchBitcoinPrice(): Promise<PriceData> {
             price: parseFloat(tickerData.lastPrice),
             markPrice: parseFloat(premiumData.markPrice),
             indexPrice: parseFloat(premiumData.indexPrice),
-            fundingRate: parseFloat(premiumData.lastFundingRate) * 100, // Convert to percentage
+            fundingRate: parseFloat(premiumData.lastFundingRate) * 100,
             change24h: parseFloat(tickerData.priceChange),
             changePercent24h: parseFloat(tickerData.priceChangePercent),
             high24h: parseFloat(tickerData.highPrice),
@@ -76,3 +75,5 @@ export async function GET() {
         );
     }
 }
+
+export const dynamic = 'force-dynamic';
