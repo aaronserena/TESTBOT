@@ -2,8 +2,37 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 export async function GET() {
+    // Handle case where Supabase isn't configured
+    if (!supabase) {
+        return NextResponse.json({
+            isRunning: false,
+            sessionId: null,
+            mode: 'PAPER',
+            runtime: 0,
+            equity: 10000,
+            startingEquity: 10000,
+            pnl: 0,
+            pnlPercent: 0,
+            unrealizedPnl: 0,
+            position: null,
+            metrics: {
+                winRate: 0,
+                totalTrades: 0,
+                winningTrades: 0,
+                losingTrades: 0,
+                expectancy: 0,
+                maxDrawdown: 0,
+                currentDrawdown: 0,
+                totalFees: 0,
+                avgLatency: 0
+            },
+            regime: 'UNKNOWN',
+            killSwitchActive: false,
+            timestamp: Date.now()
+        });
+    }
+
     try {
-        // Fetch bot status from Supabase
         const { data, error } = await supabase
             .from('bot_status')
             .select('*')
@@ -12,7 +41,6 @@ export async function GET() {
 
         if (error && error.code !== 'PGRST116') {
             console.error('Supabase error:', error);
-            // Return default status if no data
             return NextResponse.json({
                 isRunning: false,
                 sessionId: null,
@@ -70,7 +98,6 @@ export async function GET() {
             });
         }
 
-        // Map database fields to API response
         const pnlPercent = data.starting_equity > 0
             ? ((data.pnl || 0) / data.starting_equity) * 100
             : 0;
@@ -114,3 +141,5 @@ export async function GET() {
         );
     }
 }
+
+export const dynamic = 'force-dynamic';

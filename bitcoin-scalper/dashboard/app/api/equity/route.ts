@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
 export async function GET() {
+    // Handle case where Supabase isn't configured
+    if (!supabase) {
+        return NextResponse.json({ snapshots: [] });
+    }
+
     try {
-        // Fetch equity snapshots for the chart
         const { data, error } = await supabase
             .from('equity_snapshots')
             .select('*')
@@ -28,3 +32,6 @@ export async function GET() {
         return NextResponse.json({ snapshots: [] });
     }
 }
+
+// Force dynamic to avoid build-time data fetching
+export const dynamic = 'force-dynamic';

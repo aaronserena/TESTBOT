@@ -8,6 +8,11 @@ export async function GET(request: Request) {
     const blunder = searchParams.get('blunder');
     const status = searchParams.get('status') || 'CLOSED';
 
+    // Handle case where Supabase isn't configured
+    if (!supabase) {
+        return NextResponse.json({ trades: [], total: 0 });
+    }
+
     try {
         let query = supabase
             .from('trades')
@@ -34,7 +39,6 @@ export async function GET(request: Request) {
             return NextResponse.json({ trades: [], total: 0 });
         }
 
-        // Map database fields to API response format
         const trades = (data || []).map(t => ({
             id: t.id,
             time: new Date(t.created_at).getTime(),
@@ -57,3 +61,5 @@ export async function GET(request: Request) {
         return NextResponse.json({ trades: [], total: 0 });
     }
 }
+
+export const dynamic = 'force-dynamic';

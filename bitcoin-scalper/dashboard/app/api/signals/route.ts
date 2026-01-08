@@ -6,6 +6,11 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
     const limit = parseInt(searchParams.get('limit') || '20');
 
+    // Handle case where Supabase isn't configured
+    if (!supabase) {
+        return NextResponse.json({ signals: [], total: 0 });
+    }
+
     try {
         let query = supabase
             .from('signals')
@@ -24,7 +29,6 @@ export async function GET(request: Request) {
             return NextResponse.json({ signals: [], total: 0 });
         }
 
-        // Map database fields to API response format
         const signals = (data || []).map(s => ({
             id: s.id,
             timestamp: new Date(s.created_at).getTime(),
@@ -48,3 +52,5 @@ export async function GET(request: Request) {
         return NextResponse.json({ signals: [], total: 0 });
     }
 }
+
+export const dynamic = 'force-dynamic';

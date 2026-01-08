@@ -1,18 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase client for dashboard
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Only create client if we have the URL (handles build time)
+export const supabase = supabaseUrl
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
 
 // Server-side client with service role (for API routes)
 export function createServerClient() {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceRoleKey) {
-        throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set');
+
+    if (!url || !serviceRoleKey) {
+        console.warn('Supabase credentials not configured');
+        return null;
     }
-    return createClient(supabaseUrl, serviceRoleKey, {
+
+    return createClient(url, serviceRoleKey, {
         auth: {
             autoRefreshToken: false,
             persistSession: false

@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { supabase, createServerClient } from '@/lib/supabase';
 
 export async function GET() {
+    // Handle case where Supabase isn't configured
+    if (!supabase) {
+        return NextResponse.json({ active: false, activatedAt: null, reason: null });
+    }
+
     try {
         const { data, error } = await supabase
             .from('bot_status')
@@ -28,8 +33,16 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { action, reason } = body;
 
-        // Use service role client for write operations
         const serverClient = createServerClient();
+
+        // Handle case where Supabase isn't configured
+        if (!serverClient) {
+            return NextResponse.json({
+                success: true,
+                active: action === 'activate',
+                message: 'Supabase not configured - simulated response'
+            });
+        }
 
         if (action === 'activate') {
             const { error } = await serverClient
@@ -38,7 +51,7 @@ export async function POST(request: Request) {
                     kill_switch_active: true,
                     updated_at: new Date().toISOString()
                 })
-                .neq('id', '00000000-0000-0000-0000-000000000000'); // Update all rows
+                .neq('id', '00000000-0000-0000-0000-000000000000');
 
             if (error) {
                 console.error('Failed to activate kill switch:', error);
@@ -80,3 +93,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Failed to update kill switch' }, { status: 500 });
     }
 }
+
+export const dynamic = 'force-dynamic';
