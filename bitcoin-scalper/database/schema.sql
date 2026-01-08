@@ -85,6 +85,13 @@ CREATE TABLE IF NOT EXISTS equity_snapshots (
     drawdown NUMERIC DEFAULT 0
 );
 
+-- Price History (for cron-based signal generation)
+CREATE TABLE IF NOT EXISTS price_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    price NUMERIC NOT NULL
+);
+
 -- Decision Log (audit trail)
 CREATE TABLE IF NOT EXISTS decision_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -111,6 +118,7 @@ CREATE INDEX IF NOT EXISTS idx_signals_created ON signals(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_equity_session ON equity_snapshots(session_id);
 CREATE INDEX IF NOT EXISTS idx_equity_created ON equity_snapshots(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_decision_session ON decision_logs(session_id);
+CREATE INDEX IF NOT EXISTS idx_price_history_created ON price_history(created_at DESC);
 
 -- Insert initial bot status row
 INSERT INTO bot_status (is_running, mode, equity, starting_equity)
@@ -123,6 +131,7 @@ ALTER TABLE trades ENABLE ROW LEVEL SECURITY;
 ALTER TABLE signals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE equity_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE decision_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE price_history ENABLE ROW LEVEL SECURITY;
 
 -- Policies for anon access (read-only for dashboard)
 CREATE POLICY "Allow anon read bot_status" ON bot_status FOR SELECT USING (true);
@@ -136,3 +145,13 @@ CREATE POLICY "Service role full access trades" ON trades FOR ALL USING (auth.ro
 CREATE POLICY "Service role full access signals" ON signals FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "Service role full access equity_snapshots" ON equity_snapshots FOR ALL USING (auth.role() = 'service_role');
 CREATE POLICY "Service role full access decision_logs" ON decision_logs FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY "Service role full access price_history" ON price_history FOR ALL USING (auth.role() = 'service_role');
+
+-- Cleanup old price history (keep last 24 hours)
+CREATE OR REPLACE FUNCTION cleanup_old_prices()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM price_history 
+    WHERE created_at < NOW() - INTERVAL '24 hours';
+END;
+$$ LANGUAGE plpgsql;
